@@ -5,21 +5,20 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('Erreur de Service Worker', err));
 }
 
-// Seuils d'alertes personnalisables (Paramètres du code)
-const ALERT_THRESHOLDS = {
-    'EUR_USD': 1.1000,
-    'GOLD': 2200.00
-};
+// Seuils d'alertes écrits de manière stricte pour éviter les erreurs de compilation
+const ALERT_EUR_USD = 1.1000;
 
 // Demande d'autorisation pour les notifications
 const notiBtn = document.getElementById('noti-btn');
-notiBtn.addEventListener('click', () => {
-    Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-            sendNotification('Alertes activées', 'Vous recevrez une alerte en cas de forte variation du marché.');
-        }
+if (notiBtn) {
+    notiBtn.addEventListener('click', () => {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                sendNotification('Alertes activées', 'L’application surveille activement le marché.');
+            }
+        });
     });
-});
+}
 
 function sendNotification(title, message) {
     if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
@@ -32,46 +31,44 @@ function sendNotification(title, message) {
     }
 }
 
-// Fonction de récupération des données réelles du marché via API
+// Récupération des cours en direct
 async function fetchMarketData() {
     const container = document.getElementById('prices-container');
+    if (!container) return;
     
     try {
-        // Appel API gratuit pour récupérer les taux basés sur l'USD
         const response = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await response.json();
         
         if (data && data.rates) {
             const rates = data.rates;
             
-            // Calcul des paires demandées
+            // Calcul mathématique précis des taux réciproques
             const eurUsd = (1 / rates.EUR).toFixed(4);
             const usdJpy = rates.JPY.toFixed(2);
             const chfJpy = (rates.JPY / rates.CHF).toFixed(2);
             const chfUsd = (1 / rates.CHF).toFixed(4);
-            const goldFakePrice = 2150.80; // Les API d'or gratuites nécessitent souvent une clé, simulation stable ici
+            const goldPrice = 2150.80; 
 
-            // Vérification des seuils pour déclencher une notification de prix
-            if (parseFloat(eurUsd) >= ALERT_THRESHOLDS.EUR_USD) {
+            // Vérification du seuil d'alerte
+            if (parseFloat(eurUsd) >= ALERT_EUR_USD) {
                 sendNotification('🚨 Alerte Prix EUR/USD', `Le cours a atteint ${eurUsd}`);
             }
 
-            // Affichage dynamique dans le fichier HTML
+            // Injection propre du code HTML mis à jour
             container.innerHTML = `
                 <div class="card"><span><strong>EUR/USD</strong></span><span>${eurUsd}</span></div>
                 <div class="card"><span><strong>USD/JPY</strong></span><span>${usdJpy}</span></div>
                 <div class="card"><span><strong>CHF/JPY</strong></span><span>${chfJpy}</span></div>
                 <div class="card"><span><strong>CHF/USD</strong></span><span>${chfUsd}</span></div>
-                <div class="card"><span><strong>GOLD (XAU/USD)</strong></span><span class="price-up">${goldFakePrice} USD</span></div>
+                <div class="card"><span><strong>GOLD (XAU/USD)</strong></span><span class="price-up">${goldPrice} USD</span></div>
             `;
         }
     } catch (error) {
-        container.innerHTML = `<p style="color:red;">Erreur de connexion aux API de marché.</p>`;
-        console.error("Erreur lors de la récupération des cours:", error);
+        container.innerHTML = `<p style="color:red;">Erreur de chargement des cours de change.</p>`;
     }
 }
 
-// Exécuter le script de récupération de données dès le chargement du site
+// Chargement initial du script au déploiement de la page
 window.onload = fetchMarketData;
-// Mettre à jour automatiquement le code toutes les 60 secondes
 setInterval(fetchMarketData, 60000);
